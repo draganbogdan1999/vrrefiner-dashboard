@@ -134,7 +134,12 @@
           </div>
 
           <div class="metric-row">
-            <span>Average payback</span>
+            <span>Average IRR</span>
+            <strong id="panelIrr">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Simple payback</span>
             <strong id="panelPayback">-</strong>
           </div>
 
@@ -180,7 +185,7 @@
         </div>
 
         <div class="form-group">
-          <label>Conservative sigma</label>
+          <label>Low dispersion sigma</label>
           <input type="number" id="sigmaConservative" step="0.01" value="0.40" />
         </div>
 
@@ -190,7 +195,7 @@
         </div>
 
         <div class="form-group">
-          <label>Optimistic sigma</label>
+          <label>High dispersion sigma</label>
           <input type="number" id="sigmaOptimistic" step="0.01" value="1.20" />
         </div>
 
@@ -206,7 +211,7 @@
       <div class="scenario-header">
         <h2>Scenario Control</h2>
         <p class="small-text">
-          Change investment costs, net fuel value and desired payback period to see how the market changes automatically.
+          Change investment costs, fuel value, IRR target and growth assumptions. The dashboard will update only after clicking Calculate Scenario.
         </p>
       </div>
 
@@ -290,24 +295,94 @@
         </div>
       </div>
 
-      <div class="scenario-control payback-control">
+      <div class="scenario-control">
         <div class="form-group">
-          <label>Desired payback period (years)</label>
-          <input type="number" id="globalPaybackYears" step="0.5" value="4" />
+          <label>Project lifetime (years)</label>
+          <input type="number" id="globalProjectLifetime" step="1" value="20" />
         </div>
 
         <input
           type="range"
-          id="globalPaybackSlider"
-          min="1"
-          max="10"
-          step="0.5"
-          value="4"
+          id="globalProjectLifetimeSlider"
+          min="5"
+          max="30"
+          step="1"
+          value="20"
         />
 
-        <div class="scenario-value payback-value">
-          <strong id="globalPaybackLabel">4.0 years</strong>
+        <div class="scenario-value lifetime-value">
+          <strong id="globalProjectLifetimeLabel">20 years</strong>
         </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Target IRR (%)</label>
+          <input type="number" id="globalTargetIrr" step="0.5" value="15" />
+        </div>
+
+        <input
+          type="range"
+          id="globalTargetIrrSlider"
+          min="0"
+          max="40"
+          step="0.5"
+          value="15"
+        />
+
+        <div class="scenario-value irr-value">
+          <strong id="globalTargetIrrLabel">15.0%</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Annual gasoline sales growth (%)</label>
+          <input type="number" id="globalSalesGrowth" step="0.5" value="0" />
+        </div>
+
+        <input
+          type="range"
+          id="globalSalesGrowthSlider"
+          min="-5"
+          max="10"
+          step="0.5"
+          value="0"
+        />
+
+        <div class="scenario-value growth-value">
+          <strong id="globalSalesGrowthLabel">0.0%</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Annual gasoline price growth (%)</label>
+          <input type="number" id="globalPriceGrowth" step="0.5" value="2" />
+        </div>
+
+        <input
+          type="range"
+          id="globalPriceGrowthSlider"
+          min="-5"
+          max="10"
+          step="0.5"
+          value="2"
+        />
+
+        <div class="scenario-value growth-value">
+          <strong id="globalPriceGrowthLabel">2.0%</strong>
+        </div>
+      </div>
+
+      <div class="scenario-actions">
+        <button id="calculateScenarioBtn" class="calculate-btn">
+          Calculate Scenario
+        </button>
+
+        <span id="scenarioPendingLabel" class="scenario-pending">
+          Scenario applied
+        </span>
       </div>
     </section>
 
@@ -325,11 +400,12 @@
             <label for="sortBy">Sort by</label>
             <select id="sortBy">
               <option value="baseStations">Best market - Base profitable stations</option>
+              <option value="irr">Highest average IRR</option>
               <option value="price">Highest gasoline price</option>
               <option value="consumption">Highest gasoline consumption</option>
               <option value="stations">Most service stations</option>
               <option value="coverage">Best market coverage</option>
-              <option value="payback">Fastest payback</option>
+              <option value="payback">Fastest simple payback</option>
               <option value="avgLiters">Highest avg. liters/station</option>
               <option value="country">Country A-Z</option>
             </select>
@@ -359,6 +435,7 @@
               <th>Base</th>
               <th>Optimistic</th>
               <th>Coverage Base</th>
+              <th>Avg. IRR</th>
               <th>Payback avg.</th>
               <th>Status</th>
               <th>Action</th>
@@ -378,8 +455,8 @@
       </div>
 
       <div class="card chart-card">
-        <h2>Average Annual Liters per Station</h2>
-        <canvas id="averageLitersChart"></canvas>
+        <h2>Average IRR by Country</h2>
+        <canvas id="averageIrrChart"></canvas>
       </div>
 
     </section>
@@ -388,13 +465,13 @@
       <h2>Method Summary</h2>
 
       <p>
-        The dashboard estimates the profitability threshold X0, which is the minimum annual gasoline volume
-        required for a service station to make the VRRefiner investment profitable within the selected payback period.
+        The dashboard estimates the profitability threshold X0 as the minimum initial annual gasoline volume
+        required for one service station to reach the selected target IRR over the project lifetime.
       </p>
 
       <p>
+        Annual gasoline sales growth and gasoline price growth are applied year by year over the full project lifetime.
         Net fuel value (%) adjusts the effective value of recovered gasoline after taxes, margins or other deductions.
-        For example, if the pump price is 1.60 €/L and net fuel value is 75%, the model uses 1.20 €/L.
       </p>
 
       <p>
