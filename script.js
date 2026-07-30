@@ -1,7 +1,22 @@
 let countries = JSON.parse(localStorage.getItem("vrrefinerCountriesMap")) || [];
 
+const DEFAULT_SCENARIO = {
+  machineCost: 20000,
+  installationCost: 5000,
+  maintenanceCost: 500,
+  netPricePercent: 75,
+  projectLifetime: 20,
+  targetIrrPercent: 15,
+  salesGrowthPercent: 0,
+  priceGrowthPercent: 2
+};
+
+let appliedScenarioOverrides =
+  JSON.parse(localStorage.getItem("vrrefinerScenarioOverrides")) ||
+  DEFAULT_SCENARIO;
+
 let profitableStationsChart = null;
-let averageLitersChart = null;
+let averageIrrChart = null;
 
 let worldMap = null;
 let geoJsonLayer = null;
@@ -40,9 +55,24 @@ const globalNetPricePercentInput = document.getElementById("globalNetPricePercen
 const globalNetPricePercentSlider = document.getElementById("globalNetPricePercentSlider");
 const globalNetPricePercentLabel = document.getElementById("globalNetPricePercentLabel");
 
-const globalPaybackInput = document.getElementById("globalPaybackYears");
-const globalPaybackSlider = document.getElementById("globalPaybackSlider");
-const globalPaybackLabel = document.getElementById("globalPaybackLabel");
+const globalProjectLifetimeInput = document.getElementById("globalProjectLifetime");
+const globalProjectLifetimeSlider = document.getElementById("globalProjectLifetimeSlider");
+const globalProjectLifetimeLabel = document.getElementById("globalProjectLifetimeLabel");
+
+const globalTargetIrrInput = document.getElementById("globalTargetIrr");
+const globalTargetIrrSlider = document.getElementById("globalTargetIrrSlider");
+const globalTargetIrrLabel = document.getElementById("globalTargetIrrLabel");
+
+const globalSalesGrowthInput = document.getElementById("globalSalesGrowth");
+const globalSalesGrowthSlider = document.getElementById("globalSalesGrowthSlider");
+const globalSalesGrowthLabel = document.getElementById("globalSalesGrowthLabel");
+
+const globalPriceGrowthInput = document.getElementById("globalPriceGrowth");
+const globalPriceGrowthSlider = document.getElementById("globalPriceGrowthSlider");
+const globalPriceGrowthLabel = document.getElementById("globalPriceGrowthLabel");
+
+const calculateScenarioBtn = document.getElementById("calculateScenarioBtn");
+const scenarioPendingLabel = document.getElementById("scenarioPendingLabel");
 
 const sortByInput = document.getElementById("sortBy");
 
@@ -72,11 +102,19 @@ const panelAvgLiters = document.getElementById("panelAvgLiters");
 const panelThreshold = document.getElementById("panelThreshold");
 const panelBaseStations = document.getElementById("panelBaseStations");
 const panelCoverage = document.getElementById("panelCoverage");
+const panelIrr = document.getElementById("panelIrr");
 const panelPayback = document.getElementById("panelPayback");
 const panelStatus = document.getElementById("panelStatus");
 
 function saveData() {
   localStorage.setItem("vrrefinerCountriesMap", JSON.stringify(countries));
+}
+
+function saveScenario() {
+  localStorage.setItem(
+    "vrrefinerScenarioOverrides",
+    JSON.stringify(appliedScenarioOverrides)
+  );
 }
 
 function normalizeIso3(value) {
@@ -115,6 +153,14 @@ function formatCurrency(value) {
   return `${formatNumber(value)} €`;
 }
 
+function formatPercent(value, decimals = 1) {
+  if (value === null || value === undefined || !isFinite(value)) {
+    return "N/A";
+  }
+
+  return `${formatDecimal(value * 100, decimals)}%`;
+}
+
 function litersToMillionLiters(value) {
   return value / MILLION;
 }
@@ -123,89 +169,191 @@ function millionLitersToLiters(value) {
   return value * MILLION;
 }
 
-function getActiveMachineCost() {
-  const value = Number(globalMachineCostInput.value);
-  return value >= 0 && !isNaN(value) ? value : 20000;
-}
-
-function getActiveInstallationCost() {
-  const value = Number(globalInstallationCostInput.value);
-  return value >= 0 && !isNaN(value) ? value : 5000;
-}
-
-function getActiveMaintenanceCost() {
-  const value = Number(globalMaintenanceCostInput.value);
-  return value >= 0 && !isNaN(value) ? value : 500;
-}
-
-function getActiveNetPricePercent() {
-  const value = Number(globalNetPricePercentInput.value);
-  return value > 0 && value <= 100 && !isNaN(value) ? value : 75;
-}
-
-function getActivePaybackYears() {
-  const value = Number(globalPaybackInput.value);
-  return value > 0 && !isNaN(value) ? value : 4;
-}
-
-function getScenarioOverrides() {
+function getControlScenarioValues() {
   return {
-    machineCost: getActiveMachineCost(),
-    installationCost: getActiveInstallationCost(),
-    maintenanceCost: getActiveMaintenanceCost(),
-    netPricePercent: getActiveNetPricePercent(),
-    paybackYears: getActivePaybackYears()
+    machineCost: getControlNumber(globalMachineCostInput, 20000),
+    installationCost: getControlNumber(globalInstallationCostInput, 5000),
+    maintenanceCost: getControlNumber(globalMaintenanceCostInput, 500),
+    netPricePercent: getControlNumber(globalNetPricePercentInput, 75),
+    projectLifetime: Math.round(getControlNumber(globalProjectLifetimeInput, 20)),
+    targetIrrPercent: getControlNumber(globalTargetIrrInput, 15),
+    salesGrowthPercent: getControlNumber(globalSalesGrowthInput, 0),
+    priceGrowthPercent: getControlNumber(globalPriceGrowthInput, 2)
   };
 }
 
-function updateMachineCostControls(value) {
+function getControlNumber(input, fallback) {
+  const value = Number(input.value);
+
+  if (isNaN(value)) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function getScenarioOverrides() {
+  return appliedScenarioOverrides;
+}
+
+function markScenarioPending() {
+  scenarioPendingLabel.textContent = "Pending changes - click Calculate Scenario";
+  scenarioPendingLabel.classList.add("pending");
+  calculateScenarioBtn.classList.add("attention");
+}
+
+function markScenarioApplied() {
+  scenarioPendingLabel.textContent = "Scenario applied";
+  scenarioPendingLabel.classList.remove("pending");
+  calculateScenarioBtn.classList.remove("attention");
+}
+
+function applyScenarioChanges() {
+  appliedScenarioOverrides = getControlScenarioValues();
+
+  if (appliedScenarioOverrides.machineCost < 0) {
+    appliedScenarioOverrides.machineCost = 0;
+  }
+
+  if (appliedScenarioOverrides.installationCost < 0) {
+    appliedScenarioOverrides.installationCost = 0;
+  }
+
+  if (appliedScenarioOverrides.maintenanceCost < 0) {
+    appliedScenarioOverrides.maintenanceCost = 0;
+  }
+
+  if (appliedScenarioOverrides.netPricePercent <= 0) {
+    appliedScenarioOverrides.netPricePercent = 1;
+  }
+
+  if (appliedScenarioOverrides.netPricePercent > 100) {
+    appliedScenarioOverrides.netPricePercent = 100;
+  }
+
+  if (appliedScenarioOverrides.projectLifetime < 1) {
+    appliedScenarioOverrides.projectLifetime = 1;
+  }
+
+  if (appliedScenarioOverrides.targetIrrPercent < 0) {
+    appliedScenarioOverrides.targetIrrPercent = 0;
+  }
+
+  setScenarioControls(appliedScenarioOverrides, false);
+  saveScenario();
+  markScenarioApplied();
+  renderDashboard();
+}
+
+function setScenarioControls(scenario, pending = false) {
+  updateMachineCostControls(scenario.machineCost, pending);
+  updateInstallationCostControls(scenario.installationCost, pending);
+  updateMaintenanceCostControls(scenario.maintenanceCost, pending);
+  updateNetPriceControls(scenario.netPricePercent, pending);
+  updateProjectLifetimeControls(scenario.projectLifetime, pending);
+  updateTargetIrrControls(scenario.targetIrrPercent, pending);
+  updateSalesGrowthControls(scenario.salesGrowthPercent, pending);
+  updatePriceGrowthControls(scenario.priceGrowthPercent, pending);
+
+  if (!pending) {
+    markScenarioApplied();
+  }
+}
+
+function updateMachineCostControls(value, pending = true) {
   const cleanValue = Math.max(0, Number(value));
 
   globalMachineCostInput.value = cleanValue;
   globalMachineCostSlider.value = cleanValue;
   globalMachineCostLabel.textContent = formatCurrency(cleanValue);
 
-  renderDashboard();
+  if (pending) {
+    markScenarioPending();
+  }
 }
 
-function updateInstallationCostControls(value) {
+function updateInstallationCostControls(value, pending = true) {
   const cleanValue = Math.max(0, Number(value));
 
   globalInstallationCostInput.value = cleanValue;
   globalInstallationCostSlider.value = cleanValue;
   globalInstallationCostLabel.textContent = formatCurrency(cleanValue);
 
-  renderDashboard();
+  if (pending) {
+    markScenarioPending();
+  }
 }
 
-function updateMaintenanceCostControls(value) {
+function updateMaintenanceCostControls(value, pending = true) {
   const cleanValue = Math.max(0, Number(value));
 
   globalMaintenanceCostInput.value = cleanValue;
   globalMaintenanceCostSlider.value = cleanValue;
   globalMaintenanceCostLabel.textContent = `${formatCurrency(cleanValue)}/year`;
 
-  renderDashboard();
+  if (pending) {
+    markScenarioPending();
+  }
 }
 
-function updateNetPriceControls(value) {
+function updateNetPriceControls(value, pending = true) {
   const cleanValue = Math.min(100, Math.max(1, Number(value)));
 
   globalNetPricePercentInput.value = cleanValue;
   globalNetPricePercentSlider.value = cleanValue;
   globalNetPricePercentLabel.textContent = `${cleanValue}%`;
 
-  renderDashboard();
+  if (pending) {
+    markScenarioPending();
+  }
 }
 
-function updatePaybackControls(value) {
+function updateProjectLifetimeControls(value, pending = true) {
+  const cleanValue = Math.max(1, Math.round(Number(value)));
+
+  globalProjectLifetimeInput.value = cleanValue;
+  globalProjectLifetimeSlider.value = cleanValue;
+  globalProjectLifetimeLabel.textContent = `${cleanValue} years`;
+
+  if (pending) {
+    markScenarioPending();
+  }
+}
+
+function updateTargetIrrControls(value, pending = true) {
+  const cleanValue = Math.max(0, Number(value)).toFixed(1);
+
+  globalTargetIrrInput.value = cleanValue;
+  globalTargetIrrSlider.value = cleanValue;
+  globalTargetIrrLabel.textContent = `${cleanValue}%`;
+
+  if (pending) {
+    markScenarioPending();
+  }
+}
+
+function updateSalesGrowthControls(value, pending = true) {
   const cleanValue = Number(value).toFixed(1);
 
-  globalPaybackInput.value = cleanValue;
-  globalPaybackSlider.value = cleanValue;
-  globalPaybackLabel.textContent = `${cleanValue} years`;
+  globalSalesGrowthInput.value = cleanValue;
+  globalSalesGrowthSlider.value = cleanValue;
+  globalSalesGrowthLabel.textContent = `${cleanValue}%`;
 
-  renderDashboard();
+  if (pending) {
+    markScenarioPending();
+  }
+}
+
+function updatePriceGrowthControls(value, pending = true) {
+  const cleanValue = Number(value).toFixed(1);
+
+  globalPriceGrowthInput.value = cleanValue;
+  globalPriceGrowthSlider.value = cleanValue;
+  globalPriceGrowthLabel.textContent = `${cleanValue}%`;
+
+  if (pending) {
+    markScenarioPending();
+  }
 }
 
 function erf(x) {
@@ -245,6 +393,156 @@ function lognormalSurvival(x, mean, sigma) {
   return 1 - normalCDF(z);
 }
 
+function calculateNPV(cashflows, rate) {
+  let npv = 0;
+
+  for (let i = 0; i < cashflows.length; i++) {
+    npv += cashflows[i] / Math.pow(1 + rate, i);
+  }
+
+  return npv;
+}
+
+function calculateIRR(cashflows) {
+  const hasPositive = cashflows.some(function (cashflow) {
+    return cashflow > 0;
+  });
+
+  const hasNegative = cashflows.some(function (cashflow) {
+    return cashflow < 0;
+  });
+
+  if (!hasPositive || !hasNegative) {
+    return null;
+  }
+
+  let low = -0.9999;
+  let high = 10;
+
+  let npvLow = calculateNPV(cashflows, low);
+  let npvHigh = calculateNPV(cashflows, high);
+
+  if (npvLow < 0) {
+    return null;
+  }
+
+  if (npvHigh > 0) {
+    return high;
+  }
+
+  for (let i = 0; i < 120; i++) {
+    const mid = (low + high) / 2;
+    const npvMid = calculateNPV(cashflows, mid);
+
+    if (Math.abs(npvMid) < 0.000001) {
+      return mid;
+    }
+
+    if (npvMid > 0) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  return (low + high) / 2;
+}
+
+function calculateSimplePayback(cashflows) {
+  const investment = Math.abs(cashflows[0]);
+  let cumulative = 0;
+
+  for (let year = 1; year < cashflows.length; year++) {
+    const annualCashflow = cashflows[year];
+
+    if (annualCashflow <= 0) {
+      cumulative += annualCashflow;
+      continue;
+    }
+
+    if (cumulative + annualCashflow >= investment) {
+      const remaining = investment - cumulative;
+      return (year - 1) + remaining / annualCashflow;
+    }
+
+    cumulative += annualCashflow;
+  }
+
+  return Infinity;
+}
+
+function buildCashflows(initialAnnualLiters, data, scenarioOverrides) {
+  const investment =
+    scenarioOverrides.machineCost + scenarioOverrides.installationCost;
+
+  const recoveryRateDecimal = data.recoveryRate / 100;
+  const netPriceMultiplier = scenarioOverrides.netPricePercent / 100;
+  const effectiveSellingPrice = data.sellingPrice * netPriceMultiplier;
+
+  const salesGrowthDecimal = scenarioOverrides.salesGrowthPercent / 100;
+  const priceGrowthDecimal = scenarioOverrides.priceGrowthPercent / 100;
+
+  const cashflows = [-investment];
+
+  for (let year = 1; year <= scenarioOverrides.projectLifetime; year++) {
+    const salesFactor = Math.pow(1 + salesGrowthDecimal, year - 1);
+    const priceFactor = Math.pow(1 + priceGrowthDecimal, year - 1);
+
+    const annualRecoveredLiters =
+      initialAnnualLiters * salesFactor * recoveryRateDecimal;
+
+    const annualRecoveredValue =
+      annualRecoveredLiters * effectiveSellingPrice * priceFactor;
+
+    const annualNetBenefit =
+      annualRecoveredValue - scenarioOverrides.maintenanceCost;
+
+    cashflows.push(annualNetBenefit);
+  }
+
+  return cashflows;
+}
+
+function calculateIrrThresholdLiters(data, scenarioOverrides) {
+  const investment =
+    scenarioOverrides.machineCost + scenarioOverrides.installationCost;
+
+  const recoveryRateDecimal = data.recoveryRate / 100;
+  const effectiveSellingPrice =
+    data.sellingPrice * (scenarioOverrides.netPricePercent / 100);
+
+  const targetIrrDecimal = scenarioOverrides.targetIrrPercent / 100;
+  const salesGrowthDecimal = scenarioOverrides.salesGrowthPercent / 100;
+  const priceGrowthDecimal = scenarioOverrides.priceGrowthPercent / 100;
+
+  const combinedGrowth =
+    (1 + salesGrowthDecimal) * (1 + priceGrowthDecimal);
+
+  let revenueFactor = 0;
+  let maintenanceFactor = 0;
+
+  for (let year = 1; year <= scenarioOverrides.projectLifetime; year++) {
+    const discountFactor = 1 / Math.pow(1 + targetIrrDecimal, year);
+
+    revenueFactor +=
+      Math.pow(combinedGrowth, year - 1) * discountFactor;
+
+    maintenanceFactor += discountFactor;
+  }
+
+  const denominator =
+    recoveryRateDecimal * effectiveSellingPrice * revenueFactor;
+
+  if (denominator <= 0) {
+    return Infinity;
+  }
+
+  return (
+    investment +
+    scenarioOverrides.maintenanceCost * maintenanceFactor
+  ) / denominator;
+}
+
 function calculateScenario(data, sigma) {
   const probability = lognormalSurvival(
     data.profitabilityThreshold,
@@ -259,80 +557,102 @@ function calculateScenario(data, sigma) {
   };
 }
 
+function calculateScenarioSet(baseData, sourceData) {
+  const lowDispersionScenario = {
+    label: "Low dispersion",
+    ...calculateScenario(baseData, sourceData.sigmaConservative)
+  };
+
+  const baseScenario = {
+    label: "Base",
+    ...calculateScenario(baseData, sourceData.sigmaBase)
+  };
+
+  const highDispersionScenario = {
+    label: "High dispersion",
+    ...calculateScenario(baseData, sourceData.sigmaOptimistic)
+  };
+
+  const scenarios = [
+    lowDispersionScenario,
+    baseScenario,
+    highDispersionScenario
+  ];
+
+  const sortedByStations = [...scenarios].sort(function (a, b) {
+    return a.profitableStations - b.profitableStations;
+  });
+
+  return {
+    conservativeScenario: sortedByStations[0],
+    baseScenario: baseScenario,
+    optimisticScenario: sortedByStations[sortedByStations.length - 1],
+    rawScenarios: {
+      lowDispersionScenario,
+      baseScenario,
+      highDispersionScenario
+    }
+  };
+}
+
 function calculateCountry(data, scenarioOverrides) {
-  const machineCost = scenarioOverrides.machineCost;
-  const installationCost = scenarioOverrides.installationCost;
-  const maintenanceCost = scenarioOverrides.maintenanceCost;
-  const netPricePercent = scenarioOverrides.netPricePercent;
-  const selectedPayback = scenarioOverrides.paybackYears;
+  const totalInvestment =
+    scenarioOverrides.machineCost + scenarioOverrides.installationCost;
 
-  const totalInvestment = machineCost + installationCost;
-  const recoveryRateDecimal = data.recoveryRate / 100;
-  const netPriceMultiplier = netPricePercent / 100;
-
-  const effectiveSellingPrice = data.sellingPrice * netPriceMultiplier;
+  const effectiveSellingPrice =
+    data.sellingPrice * (scenarioOverrides.netPricePercent / 100);
 
   const averageLitersPerStation = data.annualLiters / data.stations;
 
-  const recoveredLitersPerStation =
-    averageLitersPerStation * recoveryRateDecimal;
+  const cashflows = buildCashflows(
+    averageLitersPerStation,
+    data,
+    scenarioOverrides
+  );
 
-  const recoveredValuePerStation =
-    recoveredLitersPerStation * effectiveSellingPrice;
-
-  const netAnnualBenefit =
-    recoveredValuePerStation - maintenanceCost;
-
-  const averagePayback =
-    netAnnualBenefit > 0 ? totalInvestment / netAnnualBenefit : Infinity;
+  const averageIRR = calculateIRR(cashflows);
+  const simplePayback = calculateSimplePayback(cashflows);
 
   const profitabilityThreshold =
-    ((totalInvestment / selectedPayback) + maintenanceCost) /
-    (effectiveSellingPrice * recoveryRateDecimal);
+    calculateIrrThresholdLiters(data, scenarioOverrides);
 
   const baseData = {
     ...data,
-    machineCost: machineCost,
-    installationCost: installationCost,
-    maintenanceCost: maintenanceCost,
-    netPricePercent: netPricePercent,
+    machineCost: scenarioOverrides.machineCost,
+    installationCost: scenarioOverrides.installationCost,
+    maintenanceCost: scenarioOverrides.maintenanceCost,
+    netPricePercent: scenarioOverrides.netPricePercent,
     effectiveSellingPrice: effectiveSellingPrice,
-    desiredPayback: selectedPayback,
+    projectLifetime: scenarioOverrides.projectLifetime,
+    targetIrrPercent: scenarioOverrides.targetIrrPercent,
+    salesGrowthPercent: scenarioOverrides.salesGrowthPercent,
+    priceGrowthPercent: scenarioOverrides.priceGrowthPercent,
     totalInvestment: totalInvestment,
     averageLitersPerStation: averageLitersPerStation,
-    recoveredLitersPerStation: recoveredLitersPerStation,
-    recoveredValuePerStation: recoveredValuePerStation,
-    netAnnualBenefit: netAnnualBenefit,
-    averagePayback: averagePayback,
+    averageIRR: averageIRR,
+    simplePayback: simplePayback,
     profitabilityThreshold: profitabilityThreshold
   };
 
-  const conservativeScenario = calculateScenario(
-    baseData,
-    data.sigmaConservative
-  );
-
-  const baseScenario = calculateScenario(
-    baseData,
-    data.sigmaBase
-  );
-
-  const optimisticScenario = calculateScenario(
-    baseData,
-    data.sigmaOptimistic
-  );
+  const scenarioSet = calculateScenarioSet(baseData, data);
 
   let marketStatus = "Low potential";
   let statusClass = "low";
 
   const baseProfitableShare =
-    baseScenario.profitableStations / data.stations;
+    scenarioSet.baseScenario.profitableStations / data.stations;
 
-  if (averagePayback <= selectedPayback && baseProfitableShare >= 0.25) {
+  const targetIrrDecimal = scenarioOverrides.targetIrrPercent / 100;
+
+  if (
+    averageIRR !== null &&
+    averageIRR >= targetIrrDecimal &&
+    baseProfitableShare >= 0.25
+  ) {
     marketStatus = "Highly attractive";
     statusClass = "high";
   } else if (
-    averagePayback <= selectedPayback * 1.5 ||
+    (averageIRR !== null && averageIRR >= targetIrrDecimal * 0.8) ||
     baseProfitableShare >= 0.10
   ) {
     marketStatus = "Moderate potential";
@@ -340,22 +660,11 @@ function calculateCountry(data, scenarioOverrides) {
   }
 
   return {
-    machineCost: machineCost,
-    installationCost: installationCost,
-    maintenanceCost: maintenanceCost,
-    netPricePercent: netPricePercent,
-    effectiveSellingPrice: effectiveSellingPrice,
-    totalInvestment: totalInvestment,
-    desiredPayback: selectedPayback,
-    averageLitersPerStation: averageLitersPerStation,
-    recoveredLitersPerStation: recoveredLitersPerStation,
-    recoveredValuePerStation: recoveredValuePerStation,
-    netAnnualBenefit: netAnnualBenefit,
-    averagePayback: averagePayback,
-    profitabilityThreshold: profitabilityThreshold,
-    conservativeScenario: conservativeScenario,
-    baseScenario: baseScenario,
-    optimisticScenario: optimisticScenario,
+    ...baseData,
+    conservativeScenario: scenarioSet.conservativeScenario,
+    baseScenario: scenarioSet.baseScenario,
+    optimisticScenario: scenarioSet.optimisticScenario,
+    rawScenarios: scenarioSet.rawScenarios,
     marketStatus: marketStatus,
     statusClass: statusClass
   };
@@ -391,6 +700,13 @@ function getSortedCalculatedCountries() {
   const sortMode = sortByInput ? sortByInput.value : "baseStations";
 
   return [...getCalculatedCountries()].sort(function (a, b) {
+    if (sortMode === "irr") {
+      const irrA = a.averageIRR === null ? -999 : a.averageIRR;
+      const irrB = b.averageIRR === null ? -999 : b.averageIRR;
+
+      return irrB - irrA;
+    }
+
     if (sortMode === "price") {
       return b.sellingPrice - a.sellingPrice;
     }
@@ -408,8 +724,10 @@ function getSortedCalculatedCountries() {
     }
 
     if (sortMode === "payback") {
-      const paybackA = a.averagePayback === Infinity ? Number.MAX_VALUE : a.averagePayback;
-      const paybackB = b.averagePayback === Infinity ? Number.MAX_VALUE : b.averagePayback;
+      const paybackA =
+        a.simplePayback === Infinity ? Number.MAX_VALUE : a.simplePayback;
+      const paybackB =
+        b.simplePayback === Infinity ? Number.MAX_VALUE : b.simplePayback;
 
       return paybackA - paybackB;
     }
@@ -543,6 +861,7 @@ function getTooltipContent(feature) {
     Gasoline: ${formatDecimal(litersToMillionLiters(calculatedCountry.annualLiters), 1)} million L/year<br>
     Price: ${formatDecimal(calculatedCountry.sellingPrice, 2)} €/L<br>
     Net value: ${formatDecimal(calculatedCountry.effectiveSellingPrice, 2)} €/L<br>
+    Avg. IRR: ${formatPercent(calculatedCountry.averageIRR, 1)}<br>
     Status: ${calculatedCountry.marketStatus}
   `;
 }
@@ -636,6 +955,7 @@ function renderSelectedCountryPanel() {
     panelThreshold.textContent = "-";
     panelBaseStations.textContent = "-";
     panelCoverage.textContent = "-";
+    panelIrr.textContent = "-";
     panelPayback.textContent = "-";
 
     panelStatus.className = "panel-status empty-status";
@@ -659,6 +979,7 @@ function renderSelectedCountryPanel() {
     panelThreshold.textContent = "-";
     panelBaseStations.textContent = "-";
     panelCoverage.textContent = "-";
+    panelIrr.textContent = "-";
     panelPayback.textContent = "-";
 
     panelStatus.className = "panel-status empty-status";
@@ -670,9 +991,9 @@ function renderSelectedCountryPanel() {
   const coverageBase = getCoverageBase(calculatedCountry);
 
   const paybackText =
-    calculatedCountry.averagePayback === Infinity
-      ? "Not profitable"
-      : `${formatDecimal(calculatedCountry.averagePayback, 1)} years`;
+    calculatedCountry.simplePayback === Infinity
+      ? "Not reached"
+      : `${formatDecimal(calculatedCountry.simplePayback, 1)} years`;
 
   selectedCountryTitle.textContent = calculatedCountry.country;
   selectedCountrySubtitle.textContent = `ISO3: ${calculatedCountry.iso3}`;
@@ -691,6 +1012,7 @@ function renderSelectedCountryPanel() {
   panelBaseStations.textContent =
     formatNumber(calculatedCountry.baseScenario.profitableStations);
   panelCoverage.textContent = `${formatDecimal(coverageBase, 2)}%`;
+  panelIrr.textContent = formatPercent(calculatedCountry.averageIRR, 1);
   panelPayback.textContent = paybackText;
 
   panelStatus.className = `panel-status ${calculatedCountry.statusClass}-status`;
@@ -871,9 +1193,9 @@ function renderTable() {
     }
 
     const paybackText =
-      country.averagePayback === Infinity
-        ? "Not profitable"
-        : `${formatDecimal(country.averagePayback, 1)} years`;
+      country.simplePayback === Infinity
+        ? "Not reached"
+        : `${formatDecimal(country.simplePayback, 1)} years`;
 
     const coverageBase = getCoverageBase(country);
 
@@ -890,6 +1212,7 @@ function renderTable() {
       <td><strong>${formatNumber(country.baseScenario.profitableStations)}</strong></td>
       <td>${formatNumber(country.optimisticScenario.profitableStations)}</td>
       <td><strong>${formatDecimal(coverageBase, 2)}%</strong></td>
+      <td><strong>${formatPercent(country.averageIRR, 1)}</strong></td>
       <td>${paybackText}</td>
       <td>
         <span class="status ${country.statusClass}">
@@ -973,24 +1296,24 @@ function renderCharts() {
     return Math.round(country.optimisticScenario.profitableStations);
   });
 
-  const averageLitersData = sortedCountries.map(function (country) {
-    return Math.round(country.averageLitersPerStation);
+  const irrData = sortedCountries.map(function (country) {
+    return country.averageIRR === null ? 0 : Number((country.averageIRR * 100).toFixed(1));
   });
 
   const profitableCtx = document
     .getElementById("profitableStationsChart")
     .getContext("2d");
 
-  const averageCtx = document
-    .getElementById("averageLitersChart")
+  const irrCtx = document
+    .getElementById("averageIrrChart")
     .getContext("2d");
 
   if (profitableStationsChart) {
     profitableStationsChart.destroy();
   }
 
-  if (averageLitersChart) {
-    averageLitersChart.destroy();
+  if (averageIrrChart) {
+    averageIrrChart.destroy();
   }
 
   profitableStationsChart = new Chart(profitableCtx, {
@@ -1045,14 +1368,14 @@ function renderCharts() {
     }
   });
 
-  averageLitersChart = new Chart(averageCtx, {
+  averageIrrChart = new Chart(irrCtx, {
     type: "bar",
     data: {
       labels: countryLabels,
       datasets: [
         {
-          label: "Average liters per station",
-          data: averageLitersData,
+          label: "Average IRR (%)",
+          data: irrData,
           backgroundColor: "#10b981",
           borderRadius: 8
         }
@@ -1067,7 +1390,7 @@ function renderCharts() {
         tooltip: {
           callbacks: {
             label: function (context) {
-              return `${formatNumber(context.raw)} L/year`;
+              return `${formatDecimal(context.raw, 1)}%`;
             }
           }
         }
@@ -1077,7 +1400,7 @@ function renderCharts() {
           beginAtZero: true,
           ticks: {
             callback: function (value) {
-              return formatNumber(value);
+              return `${value}%`;
             }
           }
         }
@@ -1112,7 +1435,9 @@ function exportCSV() {
     "Conservative",
     "Base",
     "Optimistic",
-    "Average payback"
+    "Coverage base",
+    "Average IRR",
+    "Simple payback"
   ];
 
   const rows = calculatedCountries.map(function (country, index) {
@@ -1126,9 +1451,11 @@ function exportCSV() {
       Math.round(country.conservativeScenario.profitableStations),
       Math.round(country.baseScenario.profitableStations),
       Math.round(country.optimisticScenario.profitableStations),
-      country.averagePayback === Infinity
-        ? "Not profitable"
-        : formatDecimal(country.averagePayback, 2)
+      `${formatDecimal(getCoverageBase(country), 2)}%`,
+      formatPercent(country.averageIRR, 1),
+      country.simplePayback === Infinity
+        ? "Not reached"
+        : formatDecimal(country.simplePayback, 2)
     ];
   });
 
@@ -1205,14 +1532,17 @@ function importDataJSON(event) {
         });
 
       if (imported.scenario) {
-        updateMachineCostControls(imported.scenario.machineCost || 20000);
-        updateInstallationCostControls(imported.scenario.installationCost || 5000);
-        updateMaintenanceCostControls(imported.scenario.maintenanceCost || 500);
-        updateNetPriceControls(imported.scenario.netPricePercent || 75);
-        updatePaybackControls(imported.scenario.paybackYears || 4);
+        appliedScenarioOverrides = {
+          ...DEFAULT_SCENARIO,
+          ...imported.scenario
+        };
+
+        setScenarioControls(appliedScenarioOverrides, false);
+        saveScenario();
       }
 
       saveData();
+      markScenarioApplied();
       renderDashboard();
 
       alert("Dashboard data imported successfully.");
@@ -1239,50 +1569,74 @@ sortByInput.addEventListener("change", function () {
   renderDashboard();
 });
 
+calculateScenarioBtn.addEventListener("click", function () {
+  applyScenarioChanges();
+});
+
 globalMachineCostInput.addEventListener("input", function () {
-  updateMachineCostControls(globalMachineCostInput.value);
+  updateMachineCostControls(globalMachineCostInput.value, true);
 });
 
 globalMachineCostSlider.addEventListener("input", function () {
-  updateMachineCostControls(globalMachineCostSlider.value);
+  updateMachineCostControls(globalMachineCostSlider.value, true);
 });
 
 globalInstallationCostInput.addEventListener("input", function () {
-  updateInstallationCostControls(globalInstallationCostInput.value);
+  updateInstallationCostControls(globalInstallationCostInput.value, true);
 });
 
 globalInstallationCostSlider.addEventListener("input", function () {
-  updateInstallationCostControls(globalInstallationCostSlider.value);
+  updateInstallationCostControls(globalInstallationCostSlider.value, true);
 });
 
 globalMaintenanceCostInput.addEventListener("input", function () {
-  updateMaintenanceCostControls(globalMaintenanceCostInput.value);
+  updateMaintenanceCostControls(globalMaintenanceCostInput.value, true);
 });
 
 globalMaintenanceCostSlider.addEventListener("input", function () {
-  updateMaintenanceCostControls(globalMaintenanceCostSlider.value);
+  updateMaintenanceCostControls(globalMaintenanceCostSlider.value, true);
 });
 
 globalNetPricePercentInput.addEventListener("input", function () {
-  updateNetPriceControls(globalNetPricePercentInput.value);
+  updateNetPriceControls(globalNetPricePercentInput.value, true);
 });
 
 globalNetPricePercentSlider.addEventListener("input", function () {
-  updateNetPriceControls(globalNetPricePercentSlider.value);
+  updateNetPriceControls(globalNetPricePercentSlider.value, true);
 });
 
-globalPaybackInput.addEventListener("input", function () {
-  updatePaybackControls(globalPaybackInput.value);
+globalProjectLifetimeInput.addEventListener("input", function () {
+  updateProjectLifetimeControls(globalProjectLifetimeInput.value, true);
 });
 
-globalPaybackSlider.addEventListener("input", function () {
-  updatePaybackControls(globalPaybackSlider.value);
+globalProjectLifetimeSlider.addEventListener("input", function () {
+  updateProjectLifetimeControls(globalProjectLifetimeSlider.value, true);
 });
 
-updateMachineCostControls("20000");
-updateInstallationCostControls("5000");
-updateMaintenanceCostControls("500");
-updateNetPriceControls("75");
-updatePaybackControls("4");
+globalTargetIrrInput.addEventListener("input", function () {
+  updateTargetIrrControls(globalTargetIrrInput.value, true);
+});
+
+globalTargetIrrSlider.addEventListener("input", function () {
+  updateTargetIrrControls(globalTargetIrrSlider.value, true);
+});
+
+globalSalesGrowthInput.addEventListener("input", function () {
+  updateSalesGrowthControls(globalSalesGrowthInput.value, true);
+});
+
+globalSalesGrowthSlider.addEventListener("input", function () {
+  updateSalesGrowthControls(globalSalesGrowthSlider.value, true);
+});
+
+globalPriceGrowthInput.addEventListener("input", function () {
+  updatePriceGrowthControls(globalPriceGrowthInput.value, true);
+});
+
+globalPriceGrowthSlider.addEventListener("input", function () {
+  updatePriceGrowthControls(globalPriceGrowthSlider.value, true);
+});
+
+setScenarioControls(appliedScenarioOverrides, false);
 
 initMap();
