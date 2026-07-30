@@ -1,560 +1,487 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f3f6fb;
-  color: #1f2937;
-}
-
-.app-header {
-  background: linear-gradient(135deg, #0f172a, #1e3a8a);
-  color: white;
-  padding: 32px 40px;
-  border-bottom: 4px solid #f59e0b;
-}
-
-.app-header h1 {
-  font-size: 32px;
-  margin-bottom: 8px;
-}
-
-.app-header p {
-  color: #dbeafe;
-  font-size: 15px;
-}
-
-.dashboard {
-  padding: 30px 40px;
-  max-width: 1700px;
-  margin: 0 auto;
-}
-
-.card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  margin-bottom: 24px;
-}
-
-.card h2 {
-  font-size: 20px;
-  margin-bottom: 20px;
-  color: #0f172a;
-}
-
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.kpi-card {
-  background: white;
-  padding: 22px;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  border-top: 4px solid #f59e0b;
-}
-
-.kpi-card span {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: #64748b;
-  margin-bottom: 10px;
-}
-
-.kpi-card strong {
-  font-size: 26px;
-  color: #0f172a;
-}
-
-.main-grid {
-  display: grid;
-  grid-template-columns: 2.1fr 0.9fr;
-  gap: 24px;
-  align-items: stretch;
-}
-
-.map-card {
-  min-height: 600px;
-}
-
-#worldMap {
-  height: 520px;
-  width: 100%;
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-}
-
-.country-panel {
-  border-left: 5px solid #2563eb;
-}
-
-.panel-subtitle {
-  color: #64748b;
-  font-size: 14px;
-  margin-top: -10px;
-  margin-bottom: 18px;
-  line-height: 1.5;
-}
-
-.country-metrics {
-  display: grid;
-  gap: 10px;
-}
-
-.metric-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-}
-
-.metric-row span {
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.metric-row strong {
-  color: #0f172a;
-  font-size: 14px;
-  text-align: right;
-}
-
-.panel-status {
-  margin-top: 18px;
-  padding: 12px;
-  border-radius: 12px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.empty-status {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.high-status {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.medium-status {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.low-status {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.input-card {
-  border-left: 5px solid #2563eb;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label,
-.sort-control label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #475569;
-  margin-bottom: 6px;
-}
-
-.form-group input,
-.sort-control select {
-  padding: 11px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 14px;
-  outline: none;
-  background: #f8fafc;
-  transition: all 0.2s ease;
-}
-
-.form-group input:focus,
-.sort-control select:focus {
-  border-color: #2563eb;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-
-.button-row {
-  margin-top: 22px;
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-button,
-.import-label {
-  border: none;
-  padding: 11px 18px;
-  border-radius: 10px;
-  background: #2563eb;
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-block;
-}
-
-button:hover,
-.import-label:hover {
-  background: #1d4ed8;
-  transform: translateY(-1px);
-}
-
-button.secondary,
-.import-label {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-button.secondary:hover,
-.import-label:hover {
-  background: #cbd5e1;
-}
-
-button.danger {
-  background: #dc2626;
-}
-
-button.danger:hover {
-  background: #b91c1c;
-}
-
-.scenario-card {
-  border-left: 5px solid #10b981;
-}
-
-.scenario-header {
-  margin-bottom: 24px;
-}
-
-.scenario-header h2 {
-  margin-bottom: 8px;
-}
-
-.small-text {
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.scenario-control {
-  display: grid;
-  grid-template-columns: 250px 1fr 140px;
-  align-items: end;
-  gap: 20px;
-  margin-bottom: 22px;
-}
-
-.scenario-control input[type="range"] {
-  width: 100%;
-  cursor: pointer;
-  margin-bottom: 13px;
-}
-
-.scenario-value {
-  background: #ecfdf5;
-  color: #065f46;
-  padding: 12px;
-  border-radius: 12px;
-  text-align: center;
-  margin-bottom: 1px;
-}
-
-.scenario-value strong {
-  font-size: 17px;
-}
-
-.cost-value {
-  background: #f8fafc;
-  color: #0f172a;
-}
-
-.net-value {
-  background: #fff7ed;
-  color: #9a3412;
-}
-
-.payback-control {
-  border-top: 1px solid #e2e8f0;
-  padding-top: 22px;
-}
-
-.payback-value {
-  background: #eff6ff;
-  color: #1e40af;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.section-header h2 {
-  margin-bottom: 8px;
-}
-
-.section-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: end;
-}
-
-.sort-control {
-  display: flex;
-  flex-direction: column;
-  min-width: 280px;
-}
-
-.sort-control select {
-  cursor: pointer;
-}
-
-.map-legend {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  font-size: 12px;
-  font-weight: 700;
-  color: #475569;
-}
-
-.map-legend span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.legend-box {
-  width: 13px;
-  height: 13px;
-  border-radius: 3px;
-  display: inline-block;
-}
-
-.legend-box.high {
-  background: #22c55e;
-}
-
-.legend-box.medium {
-  background: #f59e0b;
-}
-
-.legend-box.low {
-  background: #ef4444;
-}
-
-.legend-box.empty {
-  background: #cbd5e1;
-}
-
-.table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-thead {
-  background: #0f172a;
-  color: white;
-}
-
-th,
-td {
-  padding: 14px 12px;
-  text-align: left;
-  border-bottom: 1px solid #e2e8f0;
-  white-space: nowrap;
-}
-
-tbody tr:hover {
-  background: #f8fafc;
-}
-
-tbody tr.selected-row {
-  background: #dbeafe;
-}
-
-.status {
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  display: inline-block;
-}
-
-.status.high {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status.medium {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status.low {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.delete-row-btn {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 7px 11px;
-  font-size: 12px;
-}
-
-.delete-row-btn:hover {
-  background: #fecaca;
-}
-
-.charts-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-.chart-card {
-  min-height: 390px;
-}
-
-canvas {
-  width: 100% !important;
-  max-height: 310px;
-}
-
-.explanation-card {
-  border-left: 5px solid #f59e0b;
-}
-
-.explanation-card p {
-  color: #475569;
-  line-height: 1.6;
-  margin-bottom: 12px;
-}
-
-.leaflet-tooltip {
-  border-radius: 8px;
-  border: none;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.15);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-@media (max-width: 1350px) {
-  .main-grid {
-    grid-template-columns: 1fr;
-  }
-
-  #worldMap {
-    height: 480px;
-  }
-
-  .kpi-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 1200px) {
-  .form-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 800px) {
-  .dashboard {
-    padding: 20px;
-  }
-
-  .app-header {
-    padding: 24px 20px;
-  }
-
-  .app-header h1 {
-    font-size: 24px;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .kpi-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .scenario-control {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  .scenario-value {
-    text-align: left;
-  }
-
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .section-actions {
-    justify-content: flex-start;
-  }
-
-  .sort-control {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .map-legend {
-    justify-content: flex-start;
-  }
-
-  #worldMap {
-    height: 380px;
-  }
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>VRRefiner Global Market Dashboard</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+  </script>
+</head>
+
+<body>
+
+  <header class="app-header">
+    <div>
+      <h1>VRRefiner Global Market Dashboard</h1>
+      <p>
+        Interactive market potential study for VRRefiner installation by country.
+      </p>
+    </div>
+  </header>
+
+  <main class="dashboard">
+
+    <section class="kpi-grid">
+
+      <div class="kpi-card">
+        <span>Total Countries Loaded</span>
+        <strong id="totalCountries">0</strong>
+      </div>
+
+      <div class="kpi-card">
+        <span>Total Service Stations</span>
+        <strong id="totalStations">0</strong>
+      </div>
+
+      <div class="kpi-card">
+        <span>Estimated Profitable Stations</span>
+        <strong id="totalProfitableStations">0</strong>
+      </div>
+
+      <div class="kpi-card">
+        <span>Market Coverage</span>
+        <strong id="marketCoverage">0.00%</strong>
+      </div>
+
+      <div class="kpi-card">
+        <span>Best Market</span>
+        <strong id="bestMarket">-</strong>
+      </div>
+
+    </section>
+
+    <section class="main-grid">
+
+      <div class="card map-card">
+        <div class="section-header">
+          <div>
+            <h2>Global Market Map</h2>
+            <p class="small-text">
+              Click a country to view, add or edit its market data.
+            </p>
+          </div>
+
+          <div class="map-legend">
+            <span><i class="legend-box high"></i> Highly attractive</span>
+            <span><i class="legend-box medium"></i> Moderate</span>
+            <span><i class="legend-box low"></i> Low</span>
+            <span><i class="legend-box empty"></i> No data</span>
+          </div>
+        </div>
+
+        <div id="worldMap"></div>
+      </div>
+
+      <aside class="card country-panel">
+        <h2 id="selectedCountryTitle">Select a country</h2>
+
+        <p id="selectedCountrySubtitle" class="panel-subtitle">
+          Click a country on the map or use the form below.
+        </p>
+
+        <div class="country-metrics">
+
+          <div class="metric-row">
+            <span>Service stations</span>
+            <strong id="panelStations">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Annual gasoline sold</span>
+            <strong id="panelAnnualLiters">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Gasoline price</span>
+            <strong id="panelPrice">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Net fuel value</span>
+            <strong id="panelNetPrice">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Avg. L/station</span>
+            <strong id="panelAvgLiters">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Threshold X0</span>
+            <strong id="panelThreshold">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Base profitable stations</span>
+            <strong id="panelBaseStations">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Coverage</span>
+            <strong id="panelCoverage">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Average IRR</span>
+            <strong id="panelIrr">-</strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Simple payback</span>
+            <strong id="panelPayback">-</strong>
+          </div>
+
+        </div>
+
+        <div id="panelStatus" class="panel-status empty-status">
+          No data
+        </div>
+      </aside>
+
+    </section>
+
+    <section class="card input-card">
+      <h2>Country Input Data</h2>
+
+      <div class="form-grid">
+
+        <input type="hidden" id="iso3" />
+
+        <div class="form-group">
+          <label>Country / Region</label>
+          <input type="text" id="country" placeholder="Example: Spain" />
+        </div>
+
+        <div class="form-group">
+          <label>Number of service stations</label>
+          <input type="number" id="stations" placeholder="Example: 6266" />
+        </div>
+
+        <div class="form-group">
+          <label>Annual gasoline sold (million liters)</label>
+          <input type="number" id="annualLiters" placeholder="Example: 8800" />
+        </div>
+
+        <div class="form-group">
+          <label>Final selling price (€/L)</label>
+          <input type="number" id="sellingPrice" step="0.01" placeholder="Example: 1.60" />
+        </div>
+
+        <div class="form-group">
+          <label>VRRefiner recovery rate (%)</label>
+          <input type="number" id="recoveryRate" step="0.01" value="0.10" />
+        </div>
+
+        <div class="form-group">
+          <label>Low dispersion sigma</label>
+          <input type="number" id="sigmaConservative" step="0.01" value="0.40" />
+        </div>
+
+        <div class="form-group">
+          <label>Base sigma</label>
+          <input type="number" id="sigmaBase" step="0.01" value="0.82" />
+        </div>
+
+        <div class="form-group">
+          <label>High dispersion sigma</label>
+          <input type="number" id="sigmaOptimistic" step="0.01" value="1.20" />
+        </div>
+
+      </div>
+
+      <div class="button-row">
+        <button id="addCountryBtn">Save / Update Country</button>
+        <button id="clearFormBtn" class="secondary">Clear Form</button>
+      </div>
+    </section>
+
+    <section class="card scenario-card">
+      <div class="scenario-header">
+        <h2>Scenario Control</h2>
+        <p class="small-text">
+          Change investment costs, fuel value, IRR target and growth assumptions. The dashboard will update only after clicking Calculate Scenario.
+        </p>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Machine cost (€)</label>
+          <input type="number" id="globalMachineCost" step="500" value="20000" />
+        </div>
+
+        <input
+          type="range"
+          id="globalMachineCostSlider"
+          min="5000"
+          max="80000"
+          step="500"
+          value="20000"
+        />
+
+        <div class="scenario-value cost-value">
+          <strong id="globalMachineCostLabel">20,000 €</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Installation cost (€)</label>
+          <input type="number" id="globalInstallationCost" step="250" value="5000" />
+        </div>
+
+        <input
+          type="range"
+          id="globalInstallationCostSlider"
+          min="0"
+          max="30000"
+          step="250"
+          value="5000"
+        />
+
+        <div class="scenario-value cost-value">
+          <strong id="globalInstallationCostLabel">5,000 €</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Annual maintenance cost (€)</label>
+          <input type="number" id="globalMaintenanceCost" step="100" value="500" />
+        </div>
+
+        <input
+          type="range"
+          id="globalMaintenanceCostSlider"
+          min="0"
+          max="10000"
+          step="100"
+          value="500"
+        />
+
+        <div class="scenario-value cost-value">
+          <strong id="globalMaintenanceCostLabel">500 €/year</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Net fuel value (%)</label>
+          <input type="number" id="globalNetPricePercent" step="5" value="75" />
+        </div>
+
+        <input
+          type="range"
+          id="globalNetPricePercentSlider"
+          min="30"
+          max="100"
+          step="5"
+          value="75"
+        />
+
+        <div class="scenario-value net-value">
+          <strong id="globalNetPricePercentLabel">75%</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Project lifetime (years)</label>
+          <input type="number" id="globalProjectLifetime" step="1" value="20" />
+        </div>
+
+        <input
+          type="range"
+          id="globalProjectLifetimeSlider"
+          min="5"
+          max="30"
+          step="1"
+          value="20"
+        />
+
+        <div class="scenario-value lifetime-value">
+          <strong id="globalProjectLifetimeLabel">20 years</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Target IRR (%)</label>
+          <input type="number" id="globalTargetIrr" step="0.5" value="15" />
+        </div>
+
+        <input
+          type="range"
+          id="globalTargetIrrSlider"
+          min="0"
+          max="40"
+          step="0.5"
+          value="15"
+        />
+
+        <div class="scenario-value irr-value">
+          <strong id="globalTargetIrrLabel">15.0%</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Annual gasoline sales growth (%)</label>
+          <input type="number" id="globalSalesGrowth" step="0.5" value="0" />
+        </div>
+
+        <input
+          type="range"
+          id="globalSalesGrowthSlider"
+          min="-5"
+          max="10"
+          step="0.5"
+          value="0"
+        />
+
+        <div class="scenario-value growth-value">
+          <strong id="globalSalesGrowthLabel">0.0%</strong>
+        </div>
+      </div>
+
+      <div class="scenario-control">
+        <div class="form-group">
+          <label>Annual gasoline price growth (%)</label>
+          <input type="number" id="globalPriceGrowth" step="0.5" value="2" />
+        </div>
+
+        <input
+          type="range"
+          id="globalPriceGrowthSlider"
+          min="-5"
+          max="10"
+          step="0.5"
+          value="2"
+        />
+
+        <div class="scenario-value growth-value">
+          <strong id="globalPriceGrowthLabel">2.0%</strong>
+        </div>
+      </div>
+
+      <div class="scenario-actions">
+        <button id="calculateScenarioBtn" class="calculate-btn">
+          Calculate Scenario
+        </button>
+
+        <span id="scenarioPendingLabel" class="scenario-pending">
+          Scenario applied
+        </span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <h2>Country Comparison</h2>
+          <p class="small-text">
+            Sort the table by the market indicator you want to analyze.
+          </p>
+        </div>
+
+        <div class="section-actions">
+          <div class="sort-control">
+            <label for="sortBy">Sort by</label>
+            <select id="sortBy">
+              <option value="baseStations">Best market - Base profitable stations</option>
+              <option value="irr">Highest average IRR</option>
+              <option value="price">Highest gasoline price</option>
+              <option value="consumption">Highest gasoline consumption</option>
+              <option value="stations">Most service stations</option>
+              <option value="coverage">Best market coverage</option>
+              <option value="payback">Fastest simple payback</option>
+              <option value="avgLiters">Highest avg. liters/station</option>
+              <option value="country">Country A-Z</option>
+            </select>
+          </div>
+
+          <button id="exportBtn" class="secondary">Export CSV</button>
+          <button id="exportDataBtn" class="secondary">Export Data JSON</button>
+          <label for="importDataInput" class="import-label">Import Data JSON</label>
+          <input type="file" id="importDataInput" accept=".json" hidden />
+          <button id="deleteAllBtn" class="danger">Delete All</button>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Country</th>
+              <th>Stations</th>
+              <th>Annual gasoline (million L)</th>
+              <th>Price €/L</th>
+              <th>Net price €/L</th>
+              <th>Avg. L/station</th>
+              <th>Threshold X0</th>
+              <th>Conservative</th>
+              <th>Base</th>
+              <th>Optimistic</th>
+              <th>Coverage Base</th>
+              <th>Avg. IRR</th>
+              <th>Payback avg.</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody id="countryTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="charts-grid">
+
+      <div class="card chart-card">
+        <h2>Profitable Stations by Country</h2>
+        <canvas id="profitableStationsChart"></canvas>
+      </div>
+
+      <div class="card chart-card">
+        <h2>Average IRR by Country</h2>
+        <canvas id="averageIrrChart"></canvas>
+      </div>
+
+    </section>
+
+    <section class="card explanation-card">
+      <h2>Method Summary</h2>
+
+      <p>
+        The dashboard estimates the profitability threshold X0 as the minimum initial annual gasoline volume
+        required for one service station to reach the selected target IRR over the project lifetime.
+      </p>
+
+      <p>
+        Annual gasoline sales growth and gasoline price growth are applied year by year over the full project lifetime.
+        Net fuel value (%) adjusts the effective value of recovered gasoline after taxes, margins or other deductions.
+      </p>
+
+      <p>
+        Countries are colored according to their estimated market potential:
+        green for highly attractive, yellow for moderate, red for low potential and grey for countries without data.
+      </p>
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
