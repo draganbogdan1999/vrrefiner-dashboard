@@ -17,6 +17,51 @@ jobs:
           mkdir NuiJetBot
           cd NuiJetBot
           unzip ../nuijetbot-src.zip
+      - name: Apply NuiJetBot v0.2 MediaProjection fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("NuiJetBot/app/src/main/java/com/nuijet/bot/CaptureService.java")
+          s = p.read_text()
+
+          s = s.replace(
+              "import android.content.Intent;\n",
+              "import android.content.Intent;\nimport android.content.pm.ServiceInfo;\n"
+          )
+
+          s = s.replace(
+              'startForeground(NOTIF_ID, notification("Nui Jet Bot actiu"));',
+              'startForeground(NOTIF_ID, notification("Nui Jet Bot actiu"), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);'
+          )
+
+          s = s.replace(
+              "    private void startCapture(int resultCode, Intent data) {\n        stopCapture();",
+              "    private void startCapture(int resultCode, Intent data) {\n        if (active) return;"
+          )
+
+          old = "            if (data != null) startCapture(resultCode, data);"
+          new = """            if (data != null) {
+                try {
+                    startCapture(resultCode, data);
+                } catch (Throwable t) {
+                    android.util.Log.e("NuiJetBot", "MediaProjection startup failed", t);
+                    BotAccessibilityService.setStatus("NUI ERROR: " + t.getClass().getSimpleName());
+                    stopCapture();
+                    stopSelf();
+                }
+            }"""
+          s = s.replace(old, new)
+          p.write_text(s)
+
+          g = Path("NuiJetBot/app/build.gradle")
+          t = g.read_text().replace("versionCode 1", "versionCode 2").replace('versionName "0.1"', 'versionName "0.2"')
+          g.write_text(t)
+
+          m = Path("NuiJetBot/app/src/main/java/com/nuijet/bot/MainActivity.java")
+          u = m.read_text().replace('title.setText("Nui Jet Bot v0.1");', 'title.setText("Nui Jet Bot v0.2");')
+          m.write_text(u)
+          PY
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
