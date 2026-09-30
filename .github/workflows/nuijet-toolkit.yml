@@ -1,0 +1,29 @@
+name: NuiJet local build toolkit
+on:
+  push:
+    branches: [tmp-nuijet-bot-build]
+    paths: [.github/workflows/nuijet-toolkit.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  toolkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Prepare Android tools
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NuiJet-Android35-toolkit
+          retention-days: 7
+          path: |
+            /usr/local/lib/android/sdk/platforms/android-35/android.jar
+            /usr/local/lib/android/sdk/build-tools/35.0.0/aapt
+            /usr/local/lib/android/sdk/build-tools/35.0.0/aapt2
+            /usr/local/lib/android/sdk/build-tools/35.0.0/zipalign
+            /usr/local/lib/android/sdk/build-tools/35.0.0/lib
+            /usr/local/lib/android/sdk/build-tools/35.0.0/lib64
