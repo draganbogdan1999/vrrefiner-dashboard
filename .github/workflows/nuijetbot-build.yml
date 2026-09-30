@@ -11,6 +11,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Recreate Android project
         run: |
+          cat nuijetbot-src.aa nuijetbot-src.ab nuijetbot-src.ac nuijetbot-src.ad > nuijetbot-src.b64
+          printf '%s' 'cmFkbGVVVAUAA979vGp1eAsAAQQAAAAABOkDAABQSwECHgMUAAAACAAxYj5dsqJfX0YAAABJAAAADAAYAAAAAAABAAAApIFPKwAAYnVpbGQuZ3JhZGxlVVQFAAPe/bxqdXgLAAEEAAAAAATpAwAAUEsBAh4DFAAAAAgAMWI+XSwyI5mtAAAARgEAAA8AGAAAAAAAAQAAAKSB2ysAAHNldHRpbmdzLmdyYWRsZVVUBQAD3v28anV4CwABBAAAAAAE6QMAAFBLBQYAAAAAFwAXAK8IAADRLAAAAAA=' >> nuijetbot-src.b64
           base64 -d nuijetbot-src.b64 > nuijetbot-src.zip
           mkdir NuiJetBot
           cd NuiJetBot
