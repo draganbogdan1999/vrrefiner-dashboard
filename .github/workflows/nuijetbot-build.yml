@@ -76,7 +76,7 @@ jobs:
           sed -i 's/versionCode 3/versionCode 4/' NuiJetBot/app/build.gradle
           sed -i 's/versionName "0.3"/versionName "0.4"/' NuiJetBot/app/build.gradle
           sed -i 's/Nui Jet Bot v0.3/Nui Jet Bot v0.4/' NuiJetBot/app/src/main/java/com/nuijet/bot/MainActivity.java
-      - name: Apply NuiJetBot v0.5 centre-first steering
+      - name: Apply NuiJetBot v0.5 centre-first patch
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -85,294 +85,93 @@ jobs:
           p = Path("NuiJetBot/app/src/main/java/com/nuijet/bot/CaptureService.java")
           s = p.read_text()
 
-          if "private long clearSinceMs" not in s:
-              s = s.replace(
-                  "    private long lastDirectionChangeMs = 0;\n",
-                  "    private long lastDirectionChangeMs = 0;\n    private long clearSinceMs = 0;\n"
-              )
+          # Keep normal play inside a central operating band.
+          s = s.replace("float minX = 0.10f * CAP_W;", "float minX = 0.20f * CAP_W;")
+          s = s.replace("float maxX = 0.90f * CAP_W;", "float maxX = 0.80f * CAP_W;")
 
-          new_analyze = r'''    private void analyze(ByteBuffer buf, int rowStride, int pixelStride, long now) {
-        if (looksLikeResult(buf, rowStride, pixelStride)) {
-            logDiagnostic(now, "RESULT", 0, 0, 0);
-            resetDrivingState();
-            BotAccessibilityService.setStatus("NUI v0.5: RETRY");
-            if (now - lastRetryMs > 1800) {
-                lastRetryMs = now;
-                tapScreen(0.665f, 0.812f);
-            }
-            return;
-        }
-
-        if (!looksLikeGame(buf, rowStride, pixelStride)) {
-            gameWasVisible = false;
-            targetX = Float.NaN;
-            clearSinceMs = 0;
-            BotAccessibilityService.setStatus("NUI v0.5: ESPERANT");
-            return;
-        }
-
-        if (!gameWasVisible) {
-            gameWasVisible = true;
-            gameVisibleSinceMs = now;
-            virtualPlayerX = CAP_W / 2f;
-            targetX = Float.NaN;
-            tapsThisDodge = 0;
-            lastTapDirection = 0;
-            clearSinceMs = 0;
-            previousMotionMask = null;
-            previousMotionMs = 0;
-            measuredSpeedPxSec = 0.0;
-            speedFactor = 1.0;
-            phase = 1;
-            BotAccessibilityService.setStatus("NUI v0.5: PREPARAT");
-            return;
-        }
-
-        long elapsedMs = now - gameVisibleSinceMs;
-        updateAdaptiveSpeed(buf, rowStride, pixelStride, now, elapsedMs);
-
-        if (elapsedMs < GAME_START_SETTLE_MS) {
-            BotAccessibilityService.setStatus("NUI v0.5: PREPARAT");
-            return;
-        }
-
-        final int lanes = 11;
-        float[] laneX = new float[lanes];
-        double[] risk = new double[lanes];
-        computeObstacleRisk(buf, rowStride, pixelStride, laneX, risk);
-
-        float observedX = estimatePlayerXConservative(buf, rowStride, pixelStride, virtualPlayerX);
-        if (!Float.isNaN(observedX)) {
-            virtualPlayerX = 0.80f * virtualPlayerX + 0.20f * observedX;
-        }
-
+          # Prefer returning home once the current lane is safe.
+          needle = "double currentRisk = riskAtX(laneX, risk, virtualPlayerX);"
+          repl = """double currentRisk = riskAtX(laneX, risk, virtualPlayerX);
         final float homeX = CAP_W / 2f;
-        double currentRisk = riskAtX(laneX, risk, virtualPlayerX);
-        double centerRisk = riskAtX(laneX, risk, homeX);
+        double centerRisk = riskAtX(laneX, risk, homeX);"""
+          s = s.replace(needle, repl, 1)
 
-        double dangerThreshold = BASE_DANGER_THRESHOLD / (0.90 + 0.32 * (speedFactor - 1.0));
-        double emergencyThreshold = BASE_EMERGENCY_THRESHOLD / (0.92 + 0.25 * (speedFactor - 1.0));
-        dangerThreshold = clamp(dangerThreshold, 4.0, BASE_DANGER_THRESHOLD);
-        emergencyThreshold = clamp(emergencyThreshold, 14.5, BASE_EMERGENCY_THRESHOLD);
-
-        if (!Float.isNaN(targetX) && Math.abs(targetX - virtualPlayerX) <= TARGET_DEADBAND) {
+          needle = """        if (!Float.isNaN(targetX) && Math.abs(targetX - virtualPlayerX) <= TARGET_DEADBAND) {
             targetX = Float.NaN;
             tapsThisDodge = 0;
         }
-
-        boolean clearForReturn =
-                currentRisk < dangerThreshold * 0.58 &&
-                centerRisk < dangerThreshold * 0.72;
-
-        if (clearForReturn) {
-            if (clearSinceMs == 0) clearSinceMs = now;
-        } else {
-            clearSinceMs = 0;
-        }
-
-        boolean targetIsHome = !Float.isNaN(targetX) && Math.abs(targetX - homeX) <= 14f;
-
-        // If we were returning to centre but centre has become unsafe, stop the return.
-        if (targetIsHome && centerRisk > dangerThreshold && currentRisk < dangerThreshold) {
-            targetX = Float.NaN;
-            tapsThisDodge = 0;
-            clearSinceMs = 0;
-            targetIsHome = false;
-        }
-
-        // Danger while holding or returning to centre: choose a SHORT local dodge.
-        if (currentRisk > dangerThreshold && (Float.isNaN(targetX) || targetIsHome)) {
-            float candidate = chooseShortDodgeTarget(laneX, risk, virtualPlayerX);
-            double candidateRisk = riskAtX(laneX, risk, candidate);
-            double minImprovement = Math.max(1.25, 2.7 / speedFactor);
-            boolean improvesEnough = candidateRisk + minImprovement < currentRisk;
-            boolean emergency = currentRisk >= emergencyThreshold;
-
-            if (improvesEnough || emergency) {
-                int proposedDir = candidate < virtualPlayerX ? -1 : candidate > virtualPlayerX ? 1 : 0;
-                long reverseLockMs = Math.round(BASE_REVERSE_LOCK_MS / Math.min(1.55, 0.82 + 0.32 * speedFactor));
-                boolean reversingTooSoon = proposedDir != 0 && lastTapDirection != 0
-                        && proposedDir != lastTapDirection
-                        && now - lastDirectionChangeMs < reverseLockMs
-                        && !emergency;
-
-                if (!reversingTooSoon) {
-                    targetX = candidate;
-                    tapsThisDodge = 0;
-                    clearSinceMs = 0;
-                }
-            }
-        }
-
-        // Once the obstacle has passed, come back to the middle instead of living at an edge.
-        boolean sideTarget = !Float.isNaN(targetX) && Math.abs(targetX - homeX) > 14f;
-        if (sideTarget && clearSinceMs > 0 && now - clearSinceMs >= 170) {
-            targetX = homeX;
-            tapsThisDodge = 0;
-        } else if (Float.isNaN(targetX)
-                && clearSinceMs > 0
-                && now - clearSinceMs >= 220
-                && Math.abs(virtualPlayerX - homeX) > 18f) {
+"""
+          repl = needle + """
+        // v0.5 centre-first: when the immediate path is clear, return to centre.
+        // This avoids getting stranded at one edge and then needing a full-screen crossing.
+        if (Float.isNaN(targetX)
+                && currentRisk < dangerThreshold * 0.60
+                && centerRisk < dangerThreshold * 0.72
+                && Math.abs(virtualPlayerX - homeX) > 20f) {
             targetX = homeX;
             tapsThisDodge = 0;
         }
+"""
+          s = s.replace(needle, repl, 1)
 
-        int direction = 0;
-        if (!Float.isNaN(targetX)) {
-            if (targetX < virtualPlayerX - TARGET_DEADBAND) direction = -1;
-            else if (targetX > virtualPlayerX + TARGET_DEADBAND) direction = 1;
-        }
-
-        diagRisk = currentRisk;
-        diagDanger = dangerThreshold;
-        diagDirection = direction;
-
-        boolean returningHome = !Float.isNaN(targetX) && Math.abs(targetX - homeX) <= 14f;
-        String mode = returningHome ? "CENTRE" : (!Float.isNaN(targetX) ? "DODGE" : "HOLD");
-        String dirText = direction < 0 ? "<" : direction > 0 ? ">" : ".";
-        String state = currentRisk > dangerThreshold ? "RISC" : "SEGUR";
-        BotAccessibilityService.setStatus(
-                "NUI P" + phase + " x" + String.format(Locale.US,"%.1f", speedFactor)
-                        + " " + mode + " " + dirText
-                        + " r" + Math.round(currentRisk));
-
-        logDiagnostic(now, mode + "_" + state, currentRisk, dangerThreshold, direction);
-
-        if (direction == 0) return;
-
-        long tapCooldown = Math.round(BASE_TAP_COOLDOWN_MS / Math.min(1.50, 0.86 + 0.26 * speedFactor));
-        int maxTaps;
-        if (returningHome) {
-            maxTaps = Math.min(6, 4 + (int)Math.round((speedFactor - 1.0)));
-        } else {
-            maxTaps = Math.min(6, 4 + (int)Math.round((speedFactor - 1.0) * 1.2));
-        }
-
-        if (now - lastTapMs >= tapCooldown && tapsThisDodge < maxTaps) {
-            if (lastTapDirection != 0 && direction != lastTapDirection) {
-                lastDirectionChangeMs = now;
-            } else if (lastTapDirection == 0) {
-                lastDirectionChangeMs = now;
-            }
-
-            lastTapDirection = direction;
-            lastTapMs = now;
-            tapsThisDodge++;
-
-            if (direction < 0) tapScreen(0.22f, 0.66f);
-            else tapScreen(0.78f, 0.66f);
-
-            virtualPlayerX += direction * VIRTUAL_STEP_PER_TAP;
-
-            // v0.5 deliberately keeps the normal operating area near the centre.
-            float minX = 0.20f * CAP_W;
-            float maxX = 0.80f * CAP_W;
-            if (virtualPlayerX < minX) virtualPlayerX = minX;
-            if (virtualPlayerX > maxX) virtualPlayerX = maxX;
-        }
-
-        if (tapsThisDodge >= maxTaps) {
-            targetX = Float.NaN;
-            tapsThisDodge = 0;
-        }
-    }
-
-    private float chooseShortDodgeTarget(float[] laneX, double[] risk, float currentX) {
-        final float homeX = CAP_W / 2f;
-        double speedN = clamp((speedFactor - 1.0) / 1.45, 0.0, 1.0);
-
-        // Normal dodges are only about 16-18.5% of the screen away from centre.
-        float innerOffset = (float)(CAP_W * (0.16 + 0.025 * speedN));
-        float outerOffset = (float)(CAP_W * (0.225 + 0.015 * speedN));
-
-        float leftInner = homeX - innerOffset;
-        float rightInner = homeX + innerOffset;
-        float leftOuter = homeX - outerOffset;
-        float rightOuter = homeX + outerOffset;
-
-        double current = riskAtX(laneX, risk, currentX);
-
-        if (currentX < homeX - 18f) {
-            // From the left side, never jump straight to the right side.
-            double centreScore = riskAtX(laneX, risk, homeX)
-                    + 0.018 * Math.abs(homeX - currentX);
-            double leftScore = riskAtX(laneX, risk, leftOuter)
-                    + 0.018 * Math.abs(leftOuter - currentX);
-            if (centreScore + 0.5 < current) return homeX;
-            return centreScore <= leftScore ? homeX : leftOuter;
-        }
-
-        if (currentX > homeX + 18f) {
-            // From the right side, never jump straight to the left side.
-            double centreScore = riskAtX(laneX, risk, homeX)
-                    + 0.018 * Math.abs(homeX - currentX);
-            double rightScore = riskAtX(laneX, risk, rightOuter)
-                    + 0.018 * Math.abs(rightOuter - currentX);
-            if (centreScore + 0.5 < current) return homeX;
-            return centreScore <= rightScore ? homeX : rightOuter;
-        }
-
-        // From centre, choose the safer SHORT side move.
-        double leftScore = riskAtX(laneX, risk, leftInner)
-                + 0.010 * Math.abs(leftInner - currentX);
-        double rightScore = riskAtX(laneX, risk, rightInner)
-                + 0.010 * Math.abs(rightInner - currentX);
-
-        return leftScore <= rightScore ? leftInner : rightInner;
-    }
-
-'''
+          # Replace lane chooser: local moves only; centre gets a strong preference.
           s = re.sub(
-              r'    private void analyze\(ByteBuffer buf, int rowStride, int pixelStride, long now\) \{.*?\n    private void updateAdaptiveSpeed',
-              new_analyze + '    private void updateAdaptiveSpeed',
+              r'    private int chooseSafeLane\(float\[\] laneX, double\[\] risk, float currentX\) \{.*?\n    \}\n\n    private double riskAtX',
+              '''    private int chooseSafeLane(float[] laneX, double[] risk, float currentX) {
+        int best = -1;
+        double bestScore = Double.MAX_VALUE;
+        float centre = CAP_W / 2f;
+
+        for (int i = 0; i < laneX.length; i++) {
+            float x = laneX[i];
+
+            // Normal operating band: avoid living at extreme edges.
+            if (x < CAP_W * 0.20f || x > CAP_W * 0.80f) continue;
+
+            // If already on one side, do not cross straight through to the far opposite side.
+            if (currentX < centre - 20f && x > centre + 24f) continue;
+            if (currentX > centre + 20f && x < centre - 24f) continue;
+
+            double movementPenalty = 0.060 * Math.abs(x - currentX);
+            double centrePenalty = 0.028 * Math.abs(x - centre);
+            double score = risk[i] + movementPenalty + centrePenalty;
+
+            if (score < bestScore) {
+                bestScore = score;
+                best = i;
+            }
+        }
+
+        if (best >= 0) return best;
+
+        // Fallback: nearest lane to centre.
+        int centreBest = 0;
+        double centreDist = Double.MAX_VALUE;
+        for (int i = 0; i < laneX.length; i++) {
+            double d = Math.abs(laneX[i] - centre);
+            if (d < centreDist) {
+                centreDist = d;
+                centreBest = i;
+            }
+        }
+        return centreBest;
+    }
+
+    private double riskAtX''',
               s,
               flags=re.S
           )
 
-          new_speed = r'''    private void updateAdaptiveSpeed(ByteBuffer buf, int rowStride, int pixelStride, long now, long elapsedMs) {
-        double sec = elapsedMs / 1000.0;
-        double phaseFactor;
-
-        if (sec < 15.0) {
-            phase = 1;
-            phaseFactor = 1.00;
-        } else if (sec < 30.0) {
-            phase = 2;
-            phaseFactor = 1.35;
-        } else if (sec < 50.0) {
-            phase = 3;
-            phaseFactor = 1.70;
-        } else if (sec < 72.0) {
-            phase = 4;
-            phaseFactor = 2.00;
-        } else {
-            phase = 5;
-            // Late game keeps accelerating; do not freeze the model at one speed.
-            phaseFactor = 2.20 + Math.min(0.25, (sec - 72.0) / 120.0);
-        }
-
-        double measured = estimateObstacleApproachSpeed(buf, rowStride, pixelStride, now);
-        if (measured > 1.0) {
-            if (measuredSpeedPxSec <= 1.0) measuredSpeedPxSec = measured;
-            else measuredSpeedPxSec = 0.72 * measuredSpeedPxSec + 0.28 * measured;
-        }
-
-        double measuredFactor = measuredSpeedPxSec > 5.0
-                ? clamp(measuredSpeedPxSec / 18.0, 0.90, 2.55)
-                : 1.0;
-
-        double desired = Math.max(phaseFactor, measuredFactor);
-        speedFactor = 0.80 * speedFactor + 0.20 * desired;
-        speedFactor = clamp(speedFactor, 1.0, 2.55);
-    }
-
-'''
-          s = re.sub(
-              r'    private void updateAdaptiveSpeed\(ByteBuffer buf, int rowStride, int pixelStride, long now, long elapsedMs\) \{.*?\n    private double estimateObstacleApproachSpeed',
-              new_speed + '    private double estimateObstacleApproachSpeed',
-              s,
-              flags=re.S
+          # Add a fifth late-game phase so prediction continues to get more aggressive.
+          s = s.replace(
+              '''else if (sec < 52.0) { phase = 3; phaseFactor = 1.85; }
+        else { phase = 4; phaseFactor = 2.15; }''',
+              '''else if (sec < 50.0) { phase = 3; phaseFactor = 1.75; }
+        else if (sec < 72.0) { phase = 4; phaseFactor = 2.05; }
+        else { phase = 5; phaseFactor = 2.25 + Math.min(0.20, (sec - 72.0) / 150.0); }'''
           )
+          s = s.replace("2.45) : 1.0;", "2.55) : 1.0;")
+          s = s.replace("clamp(speedFactor, 1.0, 2.45);", "clamp(speedFactor, 1.0, 2.55);")
 
           p.write_text(s)
 
@@ -381,7 +180,7 @@ jobs:
           g.write_text(t)
 
           m = Path("NuiJetBot/app/src/main/java/com/nuijet/bot/MainActivity.java")
-          u = m.read_text().replace('Nui Jet Bot v0.4', 'Nui Jet Bot v0.5')
+          u = m.read_text().replace("Nui Jet Bot v0.4", "Nui Jet Bot v0.5")
           m.write_text(u)
           PY
       - uses: actions/setup-java@v4
