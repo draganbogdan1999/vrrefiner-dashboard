@@ -68,6 +68,13 @@ jobs:
           sed -i 's/versionCode 2/versionCode 3/' NuiJetBot/app/build.gradle
           sed -i 's/versionName "0.2"/versionName "0.3"/' NuiJetBot/app/build.gradle
           sed -i 's/Nui Jet Bot v0.2/Nui Jet Bot v0.3/' NuiJetBot/app/src/main/java/com/nuijet/bot/MainActivity.java
+      - name: Apply NuiJetBot v0.4 adaptive-speed diagnostics
+        run: |
+          cat nuijet-v04/CaptureService.b64.00 nuijet-v04/CaptureService.b64.01 nuijet-v04/CaptureService.b64.02 nuijet-v04/CaptureService.b64.03 nuijet-v04/CaptureService.b64.04 > /tmp/CaptureService.v04.b64
+          base64 -d /tmp/CaptureService.v04.b64 > NuiJetBot/app/src/main/java/com/nuijet/bot/CaptureService.java
+          sed -i 's/versionCode 3/versionCode 4/' NuiJetBot/app/build.gradle
+          sed -i 's/versionName "0.3"/versionName "0.4"/' NuiJetBot/app/build.gradle
+          sed -i 's/Nui Jet Bot v0.3/Nui Jet Bot v0.4/' NuiJetBot/app/src/main/java/com/nuijet/bot/MainActivity.java
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
