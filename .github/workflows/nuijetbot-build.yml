@@ -76,13 +76,15 @@ jobs:
         run: |
           yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
           /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Build debug APK
+      - name: Build APKs
         working-directory: NuiJetBot
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-        run: gradle :app:assembleDebug
+        run: gradle :app:assembleDebug :app:assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: NuiJetBot-debug
-          path: NuiJetBot/app/build/outputs/apk/debug/app-debug.apk
+          name: NuiJetBot-stable-signing-input
+          path: |
+            NuiJetBot/app/build/outputs/apk/release/app-release-unsigned.apk
+            /usr/local/lib/android/sdk/build-tools/35.0.0/lib/apksigner.jar
