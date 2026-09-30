@@ -64,7 +64,7 @@ jobs:
           PY
       - name: Apply NuiJetBot v0.3 capture logic
         run: |
-          base64 -d nuijet-v03/CaptureService.b64 > NuiJetBot/app/src/main/java/com/nuijet/bot/CaptureService.java
+          tr -cd 'A-Za-z0-9+/=' < nuijet-v03/CaptureService.b64 | base64 -d > NuiJetBot/app/src/main/java/com/nuijet/bot/CaptureService.java
           sed -i 's/versionCode 2/versionCode 3/' NuiJetBot/app/build.gradle
           sed -i 's/versionName "0.2"/versionName "0.3"/' NuiJetBot/app/build.gradle
           sed -i 's/Nui Jet Bot v0.2/Nui Jet Bot v0.3/' NuiJetBot/app/src/main/java/com/nuijet/bot/MainActivity.java
